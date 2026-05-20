@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Brinco Bit - Plataformas Retro NES</title>
+  <style>
+    :root {
+      --bg: #111827;
+      --panel: #1f2937;
+      --ink: #f8fafc;
+      --accent: #facc15;
+      --accent-2: #38bdf8;
+      --danger: #ef4444;
+      --ok: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      background: #050816;
+      color: var(--ink);
+      font-family: "Courier New", monospace;
+      touch-action: none;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .game-shell {
+      position: relative;
+      width: min(100vw, 1180px);
+      height: min(100vh, 760px);
+      padding: 10px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 8px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--ink);
+      text-shadow: 2px 2px #000;
+      font-size: clamp(11px, 2vw, 16px);
+      user-select: none;
+    }
+
+    .brand {
+      color: var(--accent);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .hud {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 12px;
+      text-align: right;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 0;
+      width: 100%;
+      max-height: calc(100vh - 76px);
+      aspect-ratio: 16 / 9;
+      display: grid;
+      place-items: center;
+      border: 4px solid #000;
+      outline: 3px solid #e5e7eb;
+      background: #000;
+      box-shadow: 0 18px 40px rgba(0,0,0,.48);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #63b3ed;
+      display: block;
+    }
+
+    .menu {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 5;
+      width: min(310px, calc(100% - 32px));
+      padding: 14px;
+      background: rgba(17, 24, 39, .94);
+      border: 3px solid #f8fafc;
+      box-shadow: 6px 6px 0 #000;
+      transition: transform .18s ease, opacity .18s ease;
+    }
+
+    .menu.hidden {
+      transform: translateX(calc(-100% - 28px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .menu h1 {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 20px;
+      line-height: 1.1;
+      text-shadow: 2px 2px #000;
+    }
+
+    .menu p {
+      margin: 8px 0;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #dbeafe;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    button {
+      border: 0;
+      padding: 10px 8px;
+      background: #f8fafc;
+      color: #111827;
+      font-family: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 #000;
+      min-height: 38px;
+    }
+
+    button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+    button.primary { background: var(--accent); }
+    button.blue { background: var(--accent-2); }
+    button.red { background: #fb7185; }
+    button.green { background: #86efac; }
+
+    .controls-help {
+      display: none;
+      border-top: 2px solid rgba(248,250,252,.3);
+      margin-top: 8px;
+      padding-top: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .controls-help.open { display: block; }
+
+    .touch-controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 14px;
+      z-index: 4;
+      display: none;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 16px;
+      pointer-events: none;
+    }
+
+    .touch-cluster {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .touch-controls button {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 22px;
+      color: #fff;
+      background: rgba(15, 23, 42, .82);
+      border: 3px solid #f8fafc;
+      box-shadow: 3px 3px 0 #000;
+      user-select: none;
+    }
+
+    .touch-controls .jump {
+      width: 72px;
+      height: 72px;
+      background: rgba(220, 38, 38, .86);
+    }
+
+    .badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 3;
+      padding: 8px 10px;
+      color: #111827;
+      background: var(--accent);
+      border: 3px solid #000;
+      font-weight: 700;
+      display: none;
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    .badge.on { display: block; }
+
+    @media (max-width: 760px), (pointer: coarse) {
+      body { align-items: stretch; }
+      .game-shell {
+        width: 100vw;
+        height: 100vh;
+        padding: 6px;
+      }
+      .top-bar { font-size: 11px; gap: 4px; }
+      .hud { gap: 6px; }
+      .canvas-wrap { outline-width: 2px; border-width: 3px; }
+      .touch-controls { display: flex; }
+      .menu {
+        top: 8px;
+        left: 8px;
+        width: min(92vw, 330px);
+        max-height: calc(100vh - 20px);
+        overflow: auto;
+      }
+      .menu-grid { grid-template-columns: 1fr; }
+      .canvas-wrap { max-height: calc(100vh - 58px); }
+    }
+
+    @media (max-height: 520px) {
+      .game-shell { grid-template-rows: auto 1fr; padding: 4px; gap: 4px; }
+      .top-bar { font-size: 10px; }
+      .touch-controls button { width: 48px; height: 48px; }
+      .touch-controls .jump { width: 58px; height: 58px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="top-bar">
+      <div class="brand">BRINCO BIT</div>
+      <div id="hud" class="hud"></div>
+    </header>
+
+    <section class="canvas-wrap" aria-label="Juego de plataformas retro">
+      <canvas id="game" width="960" height="540"></canvas>
+      <div id="autoBadge" class="badge">MODO AUTOMÁTICO ACTIVADO</div>
+
+      <aside id="menu" class="menu">
+        <h1>BRINCO BIT</h1>
+        <p>Plataformas 2D retro: supera tres niveles, pisa criaturas, evita huecos y llega al banderín.</p>
+        <div class="menu-grid">
+          <button id="startBtn" class="primary">Iniciar</button>
+          <button id="restartBtn">Reiniciar</button>
+          <button id="pauseBtn" class="blue">Pausa</button>
+          <button id="soundBtn" class="green">Sonido</button>
+          <button id="autoBtn" class="primary">Auto</button>
+          <button id="helpBtn">Controles</button>
+          <button id="hideBtn" class="red">Ocultar</button>
+        </div>
+        <div id="controlsHelp" class="controls-help">
+          Teclado: A/Flecha izquierda, D/Flecha derecha, Espacio/W/Flecha arriba para saltar.
+          P pausa, M menú, S sonido, O modo automático.
+        </div>
+      </aside>
+
+      <nav class="touch-controls" aria-label="Controles táctiles">
+        <div class="touch-cluster">
+          <button data-touch="left" aria-label="Izquierda">◀</button>
+          <button data-touch="right" aria-label="Derecha">▶</button>
+        </div>
+        <div class="touch-cluster">
+          <button data-touch="pause" aria-label="Pausa">Ⅱ</button>
+          <button data-touch="jump" class="jump" aria-label="Saltar">A</button>
+        </div>
+      </nav>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const TILE = 32;
+    const VIEW_W = 960;
+    const VIEW_H = 540;
+    const GRAVITY = 1850;
+    const MAX_FALL = 980;
+    const ACCEL = 1650;
+    const FRICTION = 1750;
+    const MAX_SPEED = 238;
+    const JUMP_SPEED = 610;
+    const JUMP_CUT = 0.48;
+    const ENEMY_SPEED = 58;
+
+    const TILE_EMPTY = 0;
+    const TILE_GROUND = 1;
+    const TILE_BLOCK = 2;
+    const TILE_PLATFORM = 3;
+    const TILE_COIN = 4;
+    const TILE_ENEMY = 5;
+    const TILE_GOAL = 6;
+
+    const colors = {
+      black: "#050505",
+      white: "#f8fafc",
+      yellow: "#facc15",
+      orange: "#fb923c",
+      red: "#ef4444",
+      blue: "#2563eb",
+      cyan: "#38bdf8",
+      green: "#22c55e",
+      darkGreen: "#15803d",
+      brown: "#92400e",
+      brick: "#b45309",
+      purple: "#7c3aed"
+    };
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function rectsOverlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    class InputManager {
+      constructor() {
+        this.keys = new Set();
+        this.pressed = new Set();
+        this.touch = { left: false, right: false, jump: false };
+        window.addEventListener("keydown", (e) => {
+          const k = e.key.toLowerCase();
+          if (["arrowleft", "arrowright", "arrowup", " ", "a", "d", "w"].includes(k)) e.preventDefault();
+          if (!this.keys.has(k)) this.pressed.add(k);
+          this.keys.add(k);
+        });
+        window.addEventListener("keyup", (e) => {
+          this.keys.delete(e.key.toLowerCase());
+        });
+        document.querySelectorAll("[data-touch]").forEach((btn) => {
+          const action = btn.dataset.touch;
+          const down = (e) => {
+            e.preventDefault();
+            if (action === "pause") {
+              this.pressed.add("p");
+              return;
+            }
+            this.touch[action] = true;
+            if (action === "jump") this.pressed.add(" ");
+          };
+          const up = (e) => {
+            e.preventDefault();
+            if (action !== "pause") this.touch[action] = false;
+          };
+          btn.addEventListener("pointerdown", down);
+          btn.addEventListener("pointerup", up);
+          btn.addEventListener("pointercancel", up);
+          btn.addEventListener("pointerleave", up);
+        });
+      }
+
+      endFrame() { this.pressed.clear(); }
+
+      isLeft() { return this.keys.has("arrowleft") || this.keys.has("a") || this.touch.left; }
+      isRight() { return this.keys.has("arrowright") || this.keys.has("d") || this.touch.right; }
+      isJumpHeld() { return this.keys.has(" ") || this.keys.has("w") || this.keys.has("arrowup") || this.touch.jump; }
+      wasJumpPressed() { return this.pressed.has(" ") || this.pressed.has("w") || this.pressed.has("arrowup"); }
+      wasPressed(key) { return this.pressed.has(key); }
+    }
+
+    class SoundManager {
+      constructor() {
+        this.enabled = true;
+        this.ctx = null;
+      }
+
+      ensure() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === "suspended") this.ctx.resume();
+      }
+
+      toggle() { this.enabled = !this.enabled; return this.enabled; }
+
+      tone(freq, duration, type = "square", gain = 0.06, slide = 0) {
+        if (!this.enabled) return;
+        this.ensure();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const vol = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), now + duration);
+        vol.gain.setValueAtTime(gain, now);
+        vol.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(vol);
+        vol.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      jump() { this.tone(420, 0.11, "square", 0.045, 170); }
+      stomp() { this.tone(210, 0.09, "square", 0.055, -80); setTimeout(() => this.tone(520, 0.08, "square", 0.045), 40); }
+      hurt() { this.tone(160, 0.16, "sawtooth", 0.06, -70); }
+      level() { [330, 440, 660].forEach((f, i) => setTimeout(() => this.tone(f, 0.12, "square", 0.05), i * 90)); }
+      victory() { [392, 523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.14, "square", 0.05), i * 105)); }
+      gameOver() { [260, 220, 180, 130].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "triangle", 0.06), i * 120)); }
+    }
+
+    class Tile {
+      constructor(type, x, y) {
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.w = TILE;
+        this.h = TILE;
+      }
+
+      get solid() { return this.type === TILE_GROUND || this.type === TILE_BLOCK || this.type === TILE_PLATFORM; }
+      get oneWay() { return this.type === TILE_PLATFORM; }
+    }
+
+    class Enemy {
+      constructor(x, y) {
+        this.x = x + 4;
+        this.y = y + 8;
+        this.w = 24;
+        this.h = 24;
+        this.vx = -ENEMY_SPEED;
+        this.vy = 0;
+        this.dead = false;
+        this.squash = 0;
+      }
+
+      bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+
+      update(dt, level) {
+        if (this.dead) {
+          this.squash += dt;
+          return;
+        }
+        this.vy = clamp(this.vy + GRAVITY * dt, -999, MAX_FALL);
+        this.x += this.vx * dt;
+        const side = this.vx > 0 ? this.x + this.w : this.x;
+        const footY = this.y + this.h + 3;
+        const frontTile = level.tileAtWorld(side + Math.sign(this.vx) * 4, this.y + this.h * 0.5);
+        const groundAhead = level.solidAtWorld(side + Math.sign(this.vx) * 14, footY);
+        if ((frontTile && frontTile.solid && !frontTile.oneWay) || !groundAhead) {
+          this.vx *= -1;
+        }
+        this.y += this.vy * dt;
+        const hits = level.getSolidTiles(this.bounds());
+        for (const t of hits) {
+          if (t.oneWay && this.y + this.h - this.vy * dt > t.y + 4) continue;
+          if (this.vy > 0) {
+            this.y = t.y - this.h;
+            this.vy = 0;
+          }
+        }
+      }
+
+      draw(ctx, cam) {
+        if (this.dead && this.squash > 0.32) return;
+        const x = Math.round(this.x - cam.x);
+        const y = Math.round(this.y - cam.y);
+        const h = this.dead ? 10 : this.h;
+        ctx.fillStyle = colors.purple;
+        ctx.fillRect(x, y + (this.h - h), this.w, h);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(x + 5, y + 7, 4, 4);
+        ctx.fillRect(x + 16, y + 7, 4, 4);
+        ctx.fillStyle = colors.orange;
+        ctx.fillRect(x + 3, y + h + 1, 7, 4);
+        ctx.fillRect(x + 15, y + h + 1, 7, 4);
+      }
+    }
+
+    class Player {
+      constructor(x, y) {
+        this.spawnX = x;
+        this.spawnY = y;
+        this.x = x;
+        this.y = y;
+        this.w = 24;
+        this.h = 30;
+        this.vx = 0;
+        this.vy = 0;
+        this.onGround = false;
+        this.state = "Idle";
+        this.invincible = 0;
+        this.deadTimer = 0;
+        this.facing = 1;
+      }
+
+      bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+
+      reset() {
+        this.x = this.spawnX;
+        this.y = this.spawnY;
+        this.vx = 0;
+        this.vy = 0;
+        this.onGround = false;
+        this.state = "Idle";
+        this.invincible = 0;
+        this.deadTimer = 0;
+      }
+
+      hurt() {
+        if (this.invincible > 0 || this.state === "Dead") return false;
+        this.invincible = 1.35;
+        this.state = "Hit";
+        this.vy = -360;
+        this.vx = -this.facing * 170;
+        return true;
+      }
+
+      die() {
+        this.state = "Dead";
+        this.deadTimer = 1.0;
+        this.vy = -500;
+      }
+
+      update(dt, input, level, camera, sound, forcedInput = null) {
+        if (this.invincible > 0) this.invincible -= dt;
+        const left = forcedInput ? forcedInput.left : input.isLeft();
+        const right = forcedInput ? forcedInput.right : input.isRight();
+        const jumpPressed = forcedInput ? forcedInput.jumpPressed : input.wasJumpPressed();
+        const jumpHeld = forcedInput ? forcedInput.jumpHeld : input.isJumpHeld();
+
+        if (this.state === "Dead") {
+          this.vy = clamp(this.vy + GRAVITY * dt, -999, MAX_FALL);
+          this.y += this.vy * dt;
+          this.deadTimer -= dt;
+          return;
+        }
+
+        if (left && !right) {
+          this.vx -= ACCEL * dt;
+          this.facing = -1;
+        } else if (right && !left) {
+          this.vx += ACCEL * dt;
+          this.facing = 1;
+        } else {
+          const sign = Math.sign(this.vx);
+          const next = Math.abs(this.vx) - FRICTION * dt;
+          this.vx = next > 0 ? next * sign : 0;
+        }
+        this.vx = clamp(this.vx, -MAX_SPEED, MAX_SPEED);
+
+        if (jumpPressed && this.onGround) {
+          this.vy = -JUMP_SPEED;
+          this.onGround = false;
+          sound.jump();
+        }
+        if (!jumpHeld && this.vy < 0) this.vy *= JUMP_CUT;
+        this.vy = clamp(this.vy + GRAVITY * dt, -999, MAX_FALL);
+
+        this.moveX(dt, level);
+        this.moveY(dt, level);
+
+        const minX = camera.x + 4;
+        if (this.x < minX) {
+          this.x = minX;
+          this.vx = Math.max(0, this.vx);
+        }
+
+        if (this.state !== "Hit") {
+          if (!this.onGround) this.state = this.vy < 0 ? "Jumping" : "Falling";
+          else if (Math.abs(this.vx) > 25) this.state = "Running";
+          else this.state = "Idle";
+        } else if (this.invincible < 0.85 && this.onGround) {
+          this.state = "Idle";
+        }
+      }
+
+      moveX(dt, level) {
+        this.x += this.vx * dt;
+        const hits = level.getSolidTiles(this.bounds()).filter(t => !t.oneWay);
+        for (const t of hits) {
+          if (this.vx > 0) this.x = t.x - this.w;
+          if (this.vx < 0) this.x = t.x + t.w;
+          this.vx = 0;
+        }
+      }
+
+      moveY(dt, level) {
+        const prevBottom = this.y + this.h;
+        this.y += this.vy * dt;
+        this.onGround = false;
+        const hits = level.getSolidTiles(this.bounds());
+        for (const t of hits) {
+          if (t.oneWay && (this.vy < 0 || prevBottom > t.y + 5)) continue;
+          if (this.vy > 0) {
+            this.y = t.y - this.h;
+            this.vy = 0;
+            this.onGround = true;
+          } else if (this.vy < 0 && !t.oneWay) {
+            this.y = t.y + t.h;
+            this.vy = 0;
+          }
+        }
+      }
+
+      draw(ctx, cam) {
+        if (this.invincible > 0 && Math.floor(this.invincible * 18) % 2 === 0) return;
+        const x = Math.round(this.x - cam.x);
+        const y = Math.round(this.y - cam.y);
+        const runBob = this.state === "Running" ? Math.sin(performance.now() / 70) * 2 : 0;
+        ctx.fillStyle = colors.red;
+        ctx.fillRect(x + 5, y + 2 + runBob, 14, 10);
+        ctx.fillStyle = colors.yellow;
+        ctx.fillRect(x + 7, y + 12 + runBob, 12, 12);
+        ctx.fillStyle = colors.blue;
+        ctx.fillRect(x + 4, y + 22 + runBob, 7, 8);
+        ctx.fillRect(x + 14, y + 22 - runBob, 7, 8);
+        ctx.fillStyle = colors.black;
+        ctx.fillRect(x + (this.facing > 0 ? 16 : 6), y + 6 + runBob, 3, 3);
+        ctx.fillStyle = colors.white;
+        ctx.fillRect(x + (this.facing > 0 ? 19 : 3), y + 15 + runBob, 4, 4);
+      }
+    }
+
+    class Level {
+      constructor(definition) {
+        this.name = definition.name;
+        this.theme = definition.theme;
+        this.map = definition.map;
+        this.width = this.map[0].length * TILE;
+        this.height = this.map.length * TILE;
+        this.spawn = { x: definition.spawn.x * TILE, y: definition.spawn.y * TILE };
+        this.enemies = [];
+        this.coins = new Set();
+        this.goal = null;
+        this.tiles = [];
+        this.parse();
+      }
+
+      parse() {
+        this.tiles = [];
+        this.enemies = [];
+        this.coins = new Set();
+        for (let y = 0; y < this.map.length; y++) {
+          for (let x = 0; x < this.map[y].length; x++) {
+            const type = Number(this.map[y][x]);
+            if (type === TILE_ENEMY) {
+              this.enemies.push(new Enemy(x * TILE, y * TILE));
+              this.map[y] = this.map[y].substring(0, x) + "0" + this.map[y].substring(x + 1);
+            } else if (type === TILE_COIN) {
+              this.coins.add(`${x},${y}`);
+            } else if (type === TILE_GOAL) {
+              this.goal = { x: x * TILE + 8, y: y * TILE - 64, w: 18, h: 96 };
+            }
+            if ([TILE_GROUND, TILE_BLOCK, TILE_PLATFORM].includes(type)) {
+              this.tiles.push(new Tile(type, x * TILE, y * TILE));
+            }
+          }
+        }
+      }
+
+      tileAt(tx, ty) {
+        if (ty < 0 || ty >= this.map.length || tx < 0 || tx >= this.map[0].length) return TILE_EMPTY;
+        return Number(this.map[ty][tx]);
+      }
+
+      tileAtWorld(x, y) {
+        const tx = Math.floor(x / TILE);
+        const ty = Math.floor(y / TILE);
+        const type = this.tileAt(tx, ty);
+        if ([TILE_GROUND, TILE_BLOCK, TILE_PLATFORM].includes(type)) return new Tile(type, tx * TILE, ty * TILE);
+        return null;
+      }
+
+      solidAtWorld(x, y) {
+        const tile = this.tileAtWorld(x, y);
+        return !!(tile && tile.solid);
+      }
+
+      getSolidTiles(box) {
+        const hits = [];
+        const startX = Math.floor(box.x / TILE) - 1;
+        const endX = Math.floor((box.x + box.w) / TILE) + 1;
+        const startY = Math.floor(box.y / TILE) - 1;
+        const endY = Math.floor((box.y + box.h) / TILE) + 1;
+        for (let y = startY; y <= endY; y++) {
+          for (let x = startX; x <= endX; x++) {
+            const type = this.tileAt(x, y);
+            if ([TILE_GROUND, TILE_BLOCK, TILE_PLATFORM].includes(type)) {
+              const t = new Tile(type, x * TILE, y * TILE);
+              if (rectsOverlap(box, t)) hits.push(t);
+            }
+          }
+        }
+        return hits;
+      }
+
+      collectCoins(player) {
+        let gained = 0;
+        for (const key of [...this.coins]) {
+          const [tx, ty] = key.split(",").map(Number);
+          const c = { x: tx * TILE + 9, y: ty * TILE + 9, w: 14, h: 14 };
+          if (rectsOverlap(player.bounds(), c)) {
+            this.coins.delete(key);
+            gained += 50;
+          }
+        }
+        return gained;
+      }
+
+      drawBackground(ctx, cam) {
+        ctx.fillStyle = this.theme.sky;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        ctx.fillStyle = this.theme.mountain;
+        for (let i = -1; i < 8; i++) {
+          const base = i * 220 - (cam.x * 0.22 % 220);
+          ctx.beginPath();
+          ctx.moveTo(base, 410);
+          ctx.lineTo(base + 110, 195 + (i % 2) * 34);
+          ctx.lineTo(base + 230, 410);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.fillStyle = this.theme.cloud;
+        for (let i = 0; i < 7; i++) {
+          const x = i * 190 - (cam.x * 0.34 % 190);
+          const y = 62 + (i % 3) * 34;
+          ctx.fillRect(x, y, 54, 16);
+          ctx.fillRect(x + 14, y - 12, 30, 14);
+          ctx.fillRect(x + 44, y + 4, 28, 12);
+        }
+      }
+
+      draw(ctx, cam) {
+        this.drawBackground(ctx, cam);
+        const startX = Math.max(0, Math.floor(cam.x / TILE) - 1);
+        const endX = Math.min(this.map[0].length, Math.ceil((cam.x + VIEW_W) / TILE) + 1);
+        for (let y = 0; y < this.map.length; y++) {
+          for (let x = startX; x < endX; x++) {
+            const type = this.tileAt(x, y);
+            const px = x * TILE - cam.x;
+            const py = y * TILE - cam.y;
+            if (type === TILE_GROUND || type === TILE_BLOCK) this.drawBlock(ctx, px, py, type);
+            if (type === TILE_PLATFORM) this.drawPlatform(ctx, px, py);
+          }
+        }
+        for (const key of this.coins) {
+          const [x, y] = key.split(",").map(Number);
+          const px = x * TILE - cam.x + 10;
+          const py = y * TILE - cam.y + 8 + Math.sin(performance.now() / 160 + x) * 2;
+          ctx.fillStyle = colors.yellow;
+          ctx.fillRect(px, py, 12, 16);
+          ctx.fillStyle = colors.white;
+          ctx.fillRect(px + 4, py + 3, 3, 8);
+        }
+        if (this.goal) {
+          const gx = this.goal.x - cam.x;
+          const gy = this.goal.y - cam.y;
+          ctx.fillStyle = colors.white;
+          ctx.fillRect(gx, gy, 5, this.goal.h);
+          ctx.fillStyle = colors.green;
+          ctx.fillRect(gx + 5, gy + 4, 40, 24);
+          ctx.fillStyle = colors.yellow;
+          ctx.fillRect(gx + 10, gy + 10, 22, 6);
+        }
+      }
+
+      drawBlock(ctx, x, y, type) {
+        ctx.fillStyle = type === TILE_GROUND ? colors.brick : colors.brown;
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = type === TILE_GROUND ? "#78350f" : "#451a03";
+        ctx.fillRect(x, y + TILE - 6, TILE, 6);
+        ctx.fillStyle = "rgba(255,255,255,.18)";
+        ctx.fillRect(x + 3, y + 3, TILE - 6, 4);
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+      }
+
+      drawPlatform(ctx, x, y) {
+        ctx.fillStyle = colors.green;
+        ctx.fillRect(x, y + 8, TILE, 12);
+        ctx.fillStyle = colors.darkGreen;
+        ctx.fillRect(x, y + 18, TILE, 6);
+        ctx.fillStyle = "#bbf7d0";
+        ctx.fillRect(x + 3, y + 10, TILE - 6, 3);
+      }
+    }
+
+    class Camera {
+      constructor() {
+        this.x = 0;
+        this.y = 0;
+      }
+
+      update(player, level, dt) {
+        const target = clamp(player.x - VIEW_W * 0.38, 0, Math.max(0, level.width - VIEW_W));
+        this.x += (target - this.x) * clamp(dt * 5.5, 0, 1);
+        this.y = 0;
+      }
+    }
+
+    class AutoPlayer {
+      constructor() {
+        this.jumpLatch = 0;
+        this.stuckTimer = 0;
+        this.lastX = 0;
+      }
+
+      decide(player, level, dt) {
+        const dir = 1;
+        const frontX = player.x + player.w + 22;
+        const farX = player.x + player.w + 58;
+        const footY = player.y + player.h + 8;
+        const headY = player.y + 8;
+        const groundFront = level.solidAtWorld(frontX, footY);
+        const groundFar = level.solidAtWorld(farX, footY);
+        const wallFront = level.solidAtWorld(frontX, player.y + player.h * 0.55);
+        const stepBlock = level.solidAtWorld(frontX, player.y + player.h - 12);
+        const platformAbove = level.solidAtWorld(farX, player.y - 34) || level.solidAtWorld(farX + 30, player.y - 28);
+        const enemyNear = level.enemies.some(e => !e.dead && Math.abs(e.x - player.x) < 96 && e.x > player.x - 12 && Math.abs(e.y - player.y) < 48);
+        const ceiling = level.solidAtWorld(player.x + player.w / 2, headY - 10);
+
+        if (Math.abs(player.x - this.lastX) < 2 && player.onGround) this.stuckTimer += dt;
+        else this.stuckTimer = 0;
+        this.lastX = player.x;
+
+        let shouldJump = false;
+        if (player.onGround && (!groundFront || !groundFar || wallFront || stepBlock || enemyNear || platformAbove || this.stuckTimer > 0.65)) {
+          shouldJump = !ceiling;
+          this.jumpLatch = shouldJump ? 0.24 : 0;
+        }
+        if (this.jumpLatch > 0) this.jumpLatch -= dt;
+
+        return {
+          left: false,
+          right: true,
+          jumpPressed: shouldJump,
+          jumpHeld: this.jumpLatch > 0 || (player.vy < -120 && (!groundFar || enemyNear || platformAbove)),
+          dir
+        };
+      }
+    }
+
+    class Game {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext("2d");
+        this.ctx.imageSmoothingEnabled = false;
+        this.input = new InputManager();
+        this.sound = new SoundManager();
+        this.camera = new Camera();
+        this.auto = new AutoPlayer();
+        this.levelIndex = 0;
+        this.level = null;
+        this.player = null;
+        this.lives = 3;
+        this.score = 0;
+        this.state = "start";
+        this.autoMode = false;
+        this.menuVisible = true;
+        this.last = 0;
+        this.bindUI();
+        this.loadLevel(0, true);
+        requestAnimationFrame((t) => this.loop(t));
+      }
+
+      bindUI() {
+        const $ = (id) => document.getElementById(id);
+        $("startBtn").addEventListener("click", () => this.start());
+        $("restartBtn").addEventListener("click", () => this.restartLevel());
+        $("pauseBtn").addEventListener("click", () => this.togglePause());
+        $("soundBtn").addEventListener("click", () => this.toggleSound());
+        $("autoBtn").addEventListener("click", () => this.toggleAuto());
+        $("helpBtn").addEventListener("click", () => $("controlsHelp").classList.toggle("open"));
+        $("hideBtn").addEventListener("click", () => this.toggleMenu());
+      }
+
+      loadLevel(index, resetScore = false) {
+        this.levelIndex = index;
+        this.level = new Level(LEVELS[index]);
+        this.player = new Player(this.level.spawn.x, this.level.spawn.y);
+        this.camera.x = 0;
+        if (resetScore) {
+          this.lives = 3;
+          this.score = 0;
+        }
+      }
+
+      start() {
+        this.sound.ensure();
+        if (this.state === "victory" || this.state === "gameover") this.loadLevel(0, true);
+        this.state = "playing";
+      }
+
+      restartLevel() {
+        this.loadLevel(this.levelIndex, false);
+        this.state = "playing";
+      }
+
+      togglePause() {
+        if (this.state === "playing") this.state = "paused";
+        else if (this.state === "paused") this.state = "playing";
+      }
+
+      toggleSound() { this.sound.toggle(); }
+      toggleAuto() { this.autoMode = !this.autoMode; }
+
+      toggleMenu() {
+        this.menuVisible = !this.menuVisible;
+        document.getElementById("menu").classList.toggle("hidden", !this.menuVisible);
+      }
+
+      loseLife() {
+        this.lives--;
+        this.sound.hurt();
+        if (this.lives <= 0) {
+          this.player.die();
+          this.state = "gameover";
+          this.sound.gameOver();
+        } else {
+          this.player.hurt();
+          setTimeout(() => {
+            if (this.state === "playing") {
+              const keepScore = this.score;
+              this.loadLevel(this.levelIndex, false);
+              this.score = keepScore;
+            }
+          }, 620);
+        }
+      }
+
+      nextLevel() {
+        if (this.levelIndex >= LEVELS.length - 1) {
+          this.state = "victory";
+          this.sound.victory();
+        } else {
+          this.levelIndex++;
+          this.loadLevel(this.levelIndex, false);
+          this.state = "playing";
+          this.sound.level();
+        }
+      }
+
+      update(dt) {
+        if (this.input.wasPressed("p")) this.togglePause();
+        if (this.input.wasPressed("m")) this.toggleMenu();
+        if (this.input.wasPressed("s")) this.toggleSound();
+        if (this.input.wasPressed("o")) this.toggleAuto();
+        if (this.input.wasPressed("enter") && (this.state === "start" || this.state === "victory" || this.state === "gameover")) this.start();
+
+        if (this.state !== "playing") return;
+        const autoInput = this.autoMode ? this.auto.decide(this.player, this.level, dt) : null;
+        this.player.update(dt, this.input, this.level, this.camera, this.sound, autoInput);
+        this.camera.update(this.player, this.level, dt);
+
+        for (const enemy of this.level.enemies) enemy.update(dt, this.level);
+        this.handleEnemyCollisions();
+
+        this.score += this.level.collectCoins(this.player);
+        if (this.player.y > this.level.height + 80) this.loseLife();
+        if (this.level.goal && rectsOverlap(this.player.bounds(), this.level.goal)) {
+          this.score += 500;
+          this.nextLevel();
+        }
+      }
+
+      handleEnemyCollisions() {
+        for (const enemy of this.level.enemies) {
+          if (enemy.dead || !rectsOverlap(this.player.bounds(), enemy.bounds())) continue;
+          const playerPrevBottom = this.player.y + this.player.h - this.player.vy * 0.016;
+          const stomp = this.player.vy > 80 && playerPrevBottom <= enemy.y + 10;
+          if (stomp) {
+            enemy.dead = true;
+            this.player.vy = -360;
+            this.score += 200;
+            this.sound.stomp();
+          } else if (this.player.hurt()) {
+            this.loseLife();
+          }
+        }
+      }
+
+      draw() {
+        this.level.draw(this.ctx, this.camera);
+        for (const enemy of this.level.enemies) enemy.draw(this.ctx, this.camera);
+        this.player.draw(this.ctx, this.camera);
+        this.drawOverlay();
+        this.updateHud();
+      }
+
+      drawOverlay() {
+        if (this.state === "playing") return;
+        this.ctx.fillStyle = "rgba(0,0,0,.58)";
+        this.ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        const data = {
+          start: ["BRINCO BIT", "ENTER o INICIAR para jugar", colors.yellow],
+          paused: ["PAUSA", "P o PAUSA para continuar", colors.cyan],
+          victory: ["VICTORIA", "Completaste los tres niveles", colors.green],
+          gameover: ["GAME OVER", "ENTER o INICIAR para reintentar", colors.red]
+        }[this.state];
+        if (!data) return;
+        this.ctx.textAlign = "center";
+        this.ctx.fillStyle = colors.black;
+        this.ctx.fillRect(250, 172, 460, 168);
+        this.ctx.strokeStyle = colors.white;
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(250, 172, 460, 168);
+        this.ctx.fillStyle = data[2];
+        this.ctx.font = "42px Courier New";
+        this.ctx.fillText(data[0], VIEW_W / 2, 238);
+        this.ctx.fillStyle = colors.white;
+        this.ctx.font = "18px Courier New";
+        this.ctx.fillText(data[1], VIEW_W / 2, 282);
+        this.ctx.font = "16px Courier New";
+        this.ctx.fillText("M: menú  |  O: automático", VIEW_W / 2, 312);
+        this.ctx.textAlign = "left";
+      }
+
+      updateHud() {
+        document.getElementById("hud").textContent =
+          `Nivel ${this.levelIndex + 1}/3  Vidas ${this.lives}  Puntos ${this.score}  Sonido ${this.sound.enabled ? "ON" : "OFF"}  ${this.state.toUpperCase()}`;
+        document.getElementById("autoBadge").classList.toggle("on", this.autoMode);
+      }
+
+      loop(t) {
+        const dt = Math.min(0.033, (t - this.last) / 1000 || 0);
+        this.last = t;
+        this.update(dt);
+        this.draw();
+        this.input.endFrame();
+        requestAnimationFrame((next) => this.loop(next));
+      }
+    }
+
+    function makeLevel(width, theme, rowsBuilder, name, spawn) {
+      const height = 17;
+      const rows = Array.from({ length: height }, () => Array(width).fill("0"));
+      rowsBuilder(rows, width);
+      return { name, theme, spawn, map: rows.map(r => r.join("")) };
+    }
+
+    function ground(rows, from, to, y = 15) {
+      for (let x = from; x <= to; x++) {
+        rows[y][x] = "1";
+        rows[y + 1][x] = "1";
+      }
+    }
+
+    function blocks(rows, y, from, to, type = "3") {
+      for (let x = from; x <= to; x++) rows[y][x] = type;
+    }
+
+    const LEVELS = [
+      makeLevel(96, { sky: "#60a5fa", mountain: "#7dd3fc", cloud: "#eff6ff" }, (r, w) => {
+        ground(r, 0, w - 1);
+        blocks(r, 12, 10, 14); blocks(r, 10, 22, 26); blocks(r, 12, 35, 40);
+        blocks(r, 9, 49, 53); blocks(r, 11, 64, 68); blocks(r, 8, 75, 79);
+        [18, 44, 61].forEach(x => r[14][x] = "5");
+        [13, 24, 25, 37, 51, 66, 77].forEach(x => r[8][x] = "4");
+        r[14][90] = "6";
+      }, "Pradera Pixel", { x: 2, y: 13 }),
+      makeLevel(118, { sky: "#93c5fd", mountain: "#86efac", cloud: "#fef3c7" }, (r, w) => {
+        ground(r, 0, 16); ground(r, 20, 34); ground(r, 39, 55); ground(r, 60, 82); ground(r, 88, w - 1);
+        blocks(r, 12, 12, 16); blocks(r, 10, 25, 30); blocks(r, 8, 43, 47);
+        blocks(r, 11, 61, 66); blocks(r, 9, 72, 76); blocks(r, 7, 91, 96); blocks(r, 11, 103, 107);
+        [28, 49, 64, 80, 101].forEach(x => r[14][x] = "5");
+        [14, 26, 44, 63, 74, 93, 105].forEach(x => r[6][x] = "4");
+        r[14][112] = "6";
+      }, "Valle Partido", { x: 2, y: 13 }),
+      makeLevel(142, { sky: "#818cf8", mountain: "#c084fc", cloud: "#fde68a" }, (r, w) => {
+        ground(r, 0, 12); ground(r, 17, 27); ground(r, 32, 42); ground(r, 48, 57); ground(r, 63, 73);
+        ground(r, 80, 91); ground(r, 97, 108); ground(r, 114, w - 1);
+        blocks(r, 12, 9, 12); blocks(r, 10, 19, 22); blocks(r, 8, 34, 38); blocks(r, 11, 50, 53);
+        blocks(r, 7, 65, 68); blocks(r, 10, 82, 86); blocks(r, 6, 100, 104); blocks(r, 9, 118, 123); blocks(r, 12, 130, 133);
+        [21, 39, 55, 70, 85, 104, 121, 132].forEach(x => r[14][x] = "5");
+        [11, 20, 36, 52, 67, 84, 102, 120, 131].forEach(x => r[5][x] = "4");
+        r[14][137] = "6";
+      }, "Cima Violeta", { x: 2, y: 13 })
+    ];
+
+    window.addEventListener("load", () => {
+      new Game(document.getElementById("game"));
+    });
+  </script>
+</body>
+</html>
